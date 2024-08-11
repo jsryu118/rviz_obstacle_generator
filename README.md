@@ -1,0 +1,1 @@
+# rviz_obstacle_generator
