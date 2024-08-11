@@ -1,0 +1,19 @@
+<launch>
+
+
+
+
+  <node pkg="rviz" type="rviz" name="rviz" output="screen" 
+    args="-d $(find rviz_obstacle_generator)/rviz/default.rviz" required="true">
+    <!-- <remap from="/clicked_point" to="/static_obstacle" /> -->
+    <remap from="/initialpose" to="/static_obstacle" />
+    <remap from="/move_base_simple/goal" to="/dynamic_obstacle" />
+  </node>
+
+  <node name="rqt_reconfigure" pkg="rqt_reconfigure" type="rqt_reconfigure" output="screen" />
+
+  <node name="rviz_obstacle_generator" pkg="rviz_obstacle_generator" type="rviz_obstacle_generator_node" output="screen">
+    <param name="hz_obstacle" value="10"/> 
+
+  </node>
+</launch>
