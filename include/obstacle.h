@@ -16,7 +16,6 @@ class Obstacle {
         Eigen::Quaterniond angular_velocity;
 
         double lifespan;
-        double current_age;
         bool is_static;
         double x_size;
         double y_size;
@@ -27,7 +26,6 @@ class Obstacle {
             orientation.setIdentity();
             angular_velocity.setIdentity();
             lifespan = 0;
-            current_age = 0;
             is_static = false;
             x_size = 0;
             y_size = 0;
