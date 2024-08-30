@@ -19,8 +19,6 @@
     <param name="osm_file_name" value="$(find rviz_obstacle_generator)/map/lidar_123_joker_KR_added.osm"/>
     <param name="hz_obstacle" value="10"/> 
   </node>
-
+  
   <node name="rosbag_vectormap_play" pkg="rosbag" type="play" args="--rate=0.1 $(find rviz_obstacle_generator)/bag/vectormap.bag" output="log"/>
-
-
 </launch>

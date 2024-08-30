@@ -2,7 +2,7 @@
 
 namespace ryu {
 
-rvizObstacleGenerator_Node::rvizObstacleGenerator_Node(ros::NodeHandle &nh, ros::NodeHandle &nh_p) {
+rvizObstacleGenerator_Node::rvizObstacleGenerator_Node(ros::NodeHandle &nh, ros::NodeHandle &nh_p){
     // Publisher setup
     std::string topic_obs, topic_obs_vis;
     nh.param<std::string>("topic_obs", topic_obs, "/tracking/car");
@@ -18,7 +18,7 @@ rvizObstacleGenerator_Node::rvizObstacleGenerator_Node(ros::NodeHandle &nh, ros:
     dynamic_obstacle_sub_ = nh.subscribe(dynamic_obstacle_topic_, 10, &rvizObstacleGenerator_Node::dynamic_obstacle_callback, this);
     sub_traj = nh.subscribe("/entire_traj", 1, &rvizObstacleGenerator_Node::globalCallback, this);
 
-    // Dynamic reconfigure setup
+
     f_ = boost::bind(&rvizObstacleGenerator_Node::reconfigure_callback, this, _1, _2);
     server_.setCallback(f_);
 
@@ -63,50 +63,37 @@ void rvizObstacleGenerator_Node::change_lane() {
         }
     }
 }
+
 void rvizObstacleGenerator_Node::reconfigure_callback(rviz_obstacle_generator::Obstaclev2Config &config, uint32_t level) {
     obs_id = config.obs_id;
     speed_km_p_h = config.speed_km_p_h;
     angular_vel_deg_p_sec = config.angular_velocity_deg_p_sec;
     duration_t_lane_following = config.duration_sec_lane_following;
     duration_t_dynamic = config.duration_sec_dynamic;
-    x_dynamic = config.x_size_meter_dynamic;
-    y_dynamic = config.y_size_meter_dynamic;
+    // x_dynamic = config.x_size_meter_dynamic;
+    // y_dynamic = config.y_size_meter_dynamic;
     infinite_obstacle = config.infinite_obstacle;
-    activate_function = config.Activate;
+    // activate_function = config.Activate;
     lane_id = config.lane_id;
-    config_state = static_cast<DynamicConfigState>(config.dynamic_config_state);
+    // config_state = static_cast<DynamicConfigState>(config.dynamic_config_state);
 
-    if(activate_function && config_state == KILL){
+    exectue_kill = config.Kill;
+    exectue_update_speed = config.NewSpeed;
+    exectue_update_Lane = config.NewLane;
+
+
+    if(exectue_kill){
         kill_obstacle();
     }
-    else if(activate_function && config_state == CHANGE_SPEED){
+    else if(exectue_update_speed){
         change_speed();
     }
-    else if(activate_function && config_state == CHANGE_LANE){
+    else if(exectue_update_Lane){
         change_lane();
     }
+
+    // someFunctionToUpdateParameters();
 }
-
-    // for (auto& obs_ptr : obs_buf_) {
-    //     obs_ptr->state_ptr_->position += obs_ptr->state_ptr_->velocity * dt;
-
-    //     Eigen::AngleAxisd angle_axis(dt * obs_ptr->state_ptr_->angular_velocity.angularDistance(Eigen::Quaterniond::Identity()), obs_ptr->state_ptr_->angular_velocity.vec());
-    //     Eigen::Quaterniond delta_orientation(angle_axis);
-    //     obs_ptr->state_ptr_->orientation = delta_orientation * obs_ptr->state_ptr_->orientation;
-        
-    //     obs_ptr->state_ptr_->velocity = obs_ptr->state_ptr_->orientation * Eigen::Vector3d(obs_ptr->state_ptr_->velocity.norm(), 0, 0);
-
-    //     // 수명 감소
-    //     if (obs_ptr->state_ptr_->lifespan > 0) {
-    //         obs_ptr->state_ptr_->lifespan -= 1;
-    //     }
-    // }
-
-    // // 수명이 다한 장애물 제거
-    // obs_buf_.erase(
-    //     std::remove_if(obs_buf_.begin(), obs_buf_.end(),
-    //                    [](const ObstaclePtr& obs_ptr) { return obs_ptr->state_ptr_->lifespan <= 0; }),
-    //     obs_buf_.end());
 
 
 void rvizObstacleGenerator_Node::publish_obstacle(const ros::TimerEvent&){
@@ -303,6 +290,29 @@ void rvizObstacleGenerator_Node::initialize_obstacle(double cur_x, double cur_y,
     int current_lane_id_ = 0;
     double min_dist_;
     int min_idx;
+
+    bool empty_idx = false;
+    for (int i = 0; i < 10; i++) {
+        bool local_find = false;
+        for (auto& obs_ptr : obs_buf_) {
+            if(obs_ptr->obs_id == i){
+                local_find = true;
+                break;
+            } 
+        }
+        if(!local_find){
+            obs_ptr->obs_id = i;
+            empty_idx = true;
+            break;
+        }
+    }
+    if(!empty_idx){
+        std::cout << "There is no empty Index!!!!!" <<std::endl;
+        std::cout << "There is no empty Index!!!!!" <<std::endl;
+        std::cout << "There is no empty Index!!!!!" <<std::endl;
+        return;
+    }
+
     for (int lane_idx = 0; lane_idx < global_lane_array.lanes.size(); lane_idx++) {
         float min_dist = 1000.0;
         float dist = 1000.0;
@@ -356,7 +366,6 @@ void rvizObstacleGenerator_Node::initialize_obstacle(double cur_x, double cur_y,
     } else {
         obs_ptr->state_ptr_->lifespan = int(duration_t_lane_following / dt);
     }
-    obs_ptr->obs_id = obs_id;
     obs_ptr->is_lane_following = true;
 
     // double angular_vel_rad_p_sec = angular_vel_deg_p_sec * M_PI / 180.0; 
@@ -364,12 +373,7 @@ void rvizObstacleGenerator_Node::initialize_obstacle(double cur_x, double cur_y,
     // obs_ptr_->state_ptr_->angular_velocity = Eigen::Quaterniond(angle_axis);  
 }
 
-bool rvizObstacleGenerator_Node::duplicate_check(){
-    for (auto& obs_ptr : obs_buf_) {
-        if(obs_ptr->obs_id == obs_id) return false;
-    }
-    return true;
-}
+
 
 void rvizObstacleGenerator_Node::lane_following_obstacle_callback(const geometry_msgs::PoseWithCovarianceStampedConstPtr &lane_following_obstacle_msg){
     if(!init_global_traj){
@@ -378,12 +382,7 @@ void rvizObstacleGenerator_Node::lane_following_obstacle_callback(const geometry
         std::cout << "Global traj is not initialized!!!!" << std::endl;
         return;
     }
-    if(!duplicate_check()){
-        std::cout << "Duplicated!!!!" << std::endl;
-        std::cout << "Duplicated!!!!" << std::endl;
-        std::cout << "Duplicated!!!!" << std::endl;
-        return;
-    }
+
 
     double x = lane_following_obstacle_msg->pose.pose.position.x;
     double y = lane_following_obstacle_msg->pose.pose.position.y;

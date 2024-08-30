@@ -9,8 +9,11 @@
 #include <hmcl_msgs/LaneArray.h>
 #include <geometry_msgs/PoseStamped.h>
 
+#include <boost/bind.hpp>
 
 #include <dynamic_reconfigure/server.h>
+#include <dynamic_reconfigure/client.h>
+
 #include <rviz_obstacle_generator/Obstaclev2Config.h> 
 #include <deque>
 
@@ -30,6 +33,7 @@ class rvizObstacleGenerator_Node {
     rvizObstacleGenerator_Node(ros::NodeHandle &nh, ros::NodeHandle &nh_p);
     ~rvizObstacleGenerator_Node();
     
+    void someFunctionToUpdateParameters();
     void reconfigure_callback(rviz_obstacle_generator::Obstaclev2Config &config, uint32_t level);
     void globalCallback(const hmcl_msgs::LaneArray& lane_msg);
 
@@ -57,10 +61,14 @@ class rvizObstacleGenerator_Node {
     ros::Timer obstacle_timer;
 
     double speed_km_p_h, angular_vel_deg_p_sec, duration_t_lane_following, duration_t_dynamic,\
-        x_lane_following, y_lane_following, x_dynamic, y_dynamic;
+        x_lane_following, y_lane_following;
+
+    double x_dynamic = 4.650;
+    double y_dynamic = 1.825;
     dynamic_reconfigure::Server<rviz_obstacle_generator::Obstaclev2Config> server_;
     dynamic_reconfigure::Server<rviz_obstacle_generator::Obstaclev2Config>::CallbackType f_;
-    
+    // dynamic_reconfigure::Client<rviz_obstacle_generator::Obstaclev2Config> dr_client_;
+
     double hz_obstacle, dt;
 
     std::string lane_following_obstacle_topic_, dynamic_obstacle_topic_;
@@ -79,6 +87,8 @@ class rvizObstacleGenerator_Node {
     bool activate_function = false;
     bool infinite_obstacle;
     int lane_id;
+
+    bool exectue_kill, exectue_update_speed, exectue_update_Lane;
 };
 
 
