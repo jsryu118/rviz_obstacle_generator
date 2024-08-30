@@ -7,6 +7,7 @@
 #include <geometry_msgs/PoseStamped.h>
 #include <autoware_msgs/DetectedObjectArray.h>
 #include <hmcl_msgs/LaneArray.h>
+#include <geometry_msgs/PoseStamped.h>
 
 
 #include <dynamic_reconfigure/server.h>
@@ -50,6 +51,7 @@ class rvizObstacleGenerator_Node {
    private:
     ros::Publisher obstacle_pub_;
     ros::Publisher obstacle_viz_pub_;
+    ros::Publisher debug_pose_pub_;
     ros::Subscriber lane_following_obstacle_sub_, sub_traj;
     ros::Subscriber dynamic_obstacle_sub_;
     ros::Timer obstacle_timer;

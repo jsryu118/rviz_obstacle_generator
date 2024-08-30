@@ -10,6 +10,7 @@ rvizObstacleGenerator_Node::rvizObstacleGenerator_Node(ros::NodeHandle &nh, ros:
 
     obstacle_pub_ = nh.advertise<autoware_msgs::DetectedObjectArray>(topic_obs, 10);
     obstacle_viz_pub_ = nh.advertise<visualization_msgs::MarkerArray>(topic_obs_vis, 10);
+    debug_pose_pub_ = nh.advertise<geometry_msgs::PoseStamped>("/debug_pose", 10);
 
     lane_following_obstacle_topic_ = "/lane_following_obstacle";
     dynamic_obstacle_topic_ = "/dynamic_obstacle"; 
@@ -22,7 +23,7 @@ rvizObstacleGenerator_Node::rvizObstacleGenerator_Node(ros::NodeHandle &nh, ros:
     server_.setCallback(f_);
 
     nh_p.param<double>("min_lookahead", min_lookahead, 5.0);
-    nh_p.param<double>("max_lookahead", max_lookahead, 20.0);
+    nh_p.param<double>("max_lookahead", max_lookahead, 10.0);
     nh_p.param<double>("max_speed", max_speed, 30.0);
 
     nh_p.param<double>("hz_obstacle", hz_obstacle, 10.0);
@@ -109,6 +110,9 @@ void rvizObstacleGenerator_Node::reconfigure_callback(rviz_obstacle_generator::O
 
 
 void rvizObstacleGenerator_Node::publish_obstacle(const ros::TimerEvent&){
+    update_angularvelocity();
+    propagate_obstacle();
+
     autoware_msgs::DetectedObjectArray obstacle_array;
     visualization_msgs::MarkerArray obstacle_viz_array;
     int id = 0;
@@ -184,8 +188,7 @@ void rvizObstacleGenerator_Node::publish_obstacle(const ros::TimerEvent&){
     }
     obstacle_pub_.publish(obstacle_array);
     obstacle_viz_pub_.publish(obstacle_viz_array);
-    update_angularvelocity();
-    propagate_obstacle();
+
     update_cloestIdx();
 }
 
@@ -237,12 +240,19 @@ void rvizObstacleGenerator_Node::update_angularvelocity(){
             // 목표 지점과 현재 위치 간의 각도 차이 계산
             double target_angle = std::atan2(obs_ptr->target_y - current_y, obs_ptr->target_x - current_x);
             double current_angle = obs_ptr->state_ptr_->orientation.toRotationMatrix().eulerAngles(0, 1, 2)[2]; // Yaw angle
+            
+
 
             // 각도 차이 계산
-            double angle_diff = (target_angle - current_angle)*2;
+            double angle_diff = (target_angle - current_angle);
+            // std::cout <<  "!!!!!!"<< std::endl;
 
-            // 각도 차이를 dt로 나누어 angular velocity 계산
-            obs_ptr->state_ptr_->angular_velocity = Eigen::Quaterniond(Eigen::AngleAxisd(angle_diff / dt, Eigen::Vector3d::UnitZ()));
+            // std::cout <<  "desired_angle: " << target_angle << std::endl;
+            // std::cout <<  "current_angle: " << current_angle << std::endl;
+            // std::cout <<  "angle_diff: " << angle_diff << std::endl;
+
+            Eigen::Quaterniond delta_orientation = Eigen::Quaterniond(Eigen::AngleAxisd(angle_diff / dt, Eigen::Vector3d::UnitZ()));
+            obs_ptr->state_ptr_->angular_velocity = delta_orientation.normalized();
         }
     }
 }
@@ -251,9 +261,23 @@ void rvizObstacleGenerator_Node::propagate_obstacle(){
 
 
         Eigen::AngleAxisd angle_axis(dt * obs_ptr->state_ptr_->angular_velocity.angularDistance(Eigen::Quaterniond::Identity()), obs_ptr->state_ptr_->angular_velocity.vec());
+
         Eigen::Quaterniond delta_orientation(angle_axis);
-        obs_ptr->state_ptr_->orientation = delta_orientation * obs_ptr->state_ptr_->orientation;
+        // obs_ptr->state_ptr_->orientation = delta_orientation * obs_ptr->state_ptr_->orientation;
+        obs_ptr->state_ptr_->orientation = (delta_orientation * obs_ptr->state_ptr_->orientation).normalized();
+
+        // std::cout<<"!!!!!!!!!!" <<std::endl;
+        // std::cout << obs_ptr->state_ptr_->velocity << std::endl;
         obs_ptr->state_ptr_->velocity = obs_ptr->state_ptr_->orientation * Eigen::Vector3d(obs_ptr->state_ptr_->speed, 0, 0);
+// std::cout << "Orientation (quaternion): ["
+//           << obs_ptr->state_ptr_->orientation.w() << ", "
+//           << obs_ptr->state_ptr_->orientation.x() << ", "
+//           << obs_ptr->state_ptr_->orientation.y() << ", "
+//           << obs_ptr->state_ptr_->orientation.z() << "]" << std::endl;
+//         std::cout << obs_ptr->state_ptr_->velocity << std::endl;
+        // obs_ptr->state_ptr_->velocity = obs_ptr->state_ptr_->orientation * Eigen::Vector3d(obs_ptr->state_ptr_->speed, 0, 0);
+
+
         obs_ptr->state_ptr_->position += obs_ptr->state_ptr_->velocity * dt;
 
         // 수명 감소
@@ -322,10 +346,10 @@ void rvizObstacleGenerator_Node::initialize_obstacle(double cur_x, double cur_y,
     );
 
     double speed_m_p_s = speed_km_p_h / 3.6;
-    obs_ptr->state_ptr_->velocity = obs_ptr->state_ptr_->orientation * Eigen::Vector3d(speed_m_p_s, 0, 0);
+    obs_ptr->state_ptr_->speed = speed_m_p_s;
+    obs_ptr->state_ptr_->velocity = obs_ptr->state_ptr_->orientation * Eigen::Vector3d(obs_ptr->state_ptr_->speed, 0, 0);
     obs_ptr->state_ptr_->x_size = x_dynamic;
     obs_ptr->state_ptr_->y_size = y_dynamic;
-    obs_ptr->state_ptr_->speed = speed_m_p_s;
     obs_ptr->state_ptr_->lifespan = int(duration_t_lane_following/dt);
     if (infinite_obstacle) {
         obs_ptr->state_ptr_->lifespan = std::numeric_limits<int>::max();
@@ -388,7 +412,9 @@ void rvizObstacleGenerator_Node::dynamic_obstacle_callback(const geometry_msgs::
     );
 
     double speed_m_p_s = speed_km_p_h / 3.6;
-    obs_ptr_->state_ptr_->velocity = obs_ptr_->state_ptr_->orientation * Eigen::Vector3d(speed_m_p_s, 0, 0);
+
+    obs_ptr_->state_ptr_->speed = speed_m_p_s;
+    obs_ptr_->state_ptr_->velocity = obs_ptr_->state_ptr_->orientation * Eigen::Vector3d(obs_ptr_->state_ptr_->speed, 0, 0);
 
     double angular_vel_rad_p_sec = angular_vel_deg_p_sec * M_PI / 180.0; 
     Eigen::AngleAxisd angle_axis(angular_vel_rad_p_sec, Eigen::Vector3d::UnitZ());
