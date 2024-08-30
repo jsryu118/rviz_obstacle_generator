@@ -4,9 +4,11 @@ namespace ryu {
 
 rvizObstacleGenerator_Node::rvizObstacleGenerator_Node(ros::NodeHandle &nh, ros::NodeHandle &nh_p) {
     // Publisher setup
-
-    obstacle_pub_ = nh.advertise<autoware_msgs::DetectedObjectArray>("/tracking_side/objects", 10);
-    obstacle_viz_pub_ = nh.advertise<visualization_msgs::MarkerArray>("/tracking_side/objects_markers", 10);
+    std::string topic_obs, topic_obs_vis;
+    nh.param<std::string>("topic_obs", topic_obs, "/tracking/car");
+    nh.param<std::string>("topic_obs_vis", topic_obs_vis, "/tracking/car_marker");
+    obstacle_pub_ = nh.advertise<autoware_msgs::DetectedObjectArray>(topic_obs, 10);
+    obstacle_viz_pub_ = nh.advertise<visualization_msgs::MarkerArray>(topic_obs_vis, 10);
 
     static_obstacle_topic_ = "/static_obstacle";
     dynamic_obstacle_topic_ = "/dynamic_obstacle"; 
@@ -53,7 +55,9 @@ void rvizObstacleGenerator_Node::publish_obstacle(const ros::TimerEvent&){
         detected_object.pose.orientation.y = obs_ptr->state_ptr_->orientation.y();
         detected_object.pose.orientation.z = obs_ptr->state_ptr_->orientation.z();
         detected_object.pose.orientation.w = obs_ptr->state_ptr_->orientation.w();
-
+        detected_object.velocity.linear.x = obs_ptr->state_ptr_->velocity.x();
+        detected_object.velocity.linear.y = obs_ptr->state_ptr_->velocity.y();
+        detected_object.velocity.linear.z = obs_ptr->state_ptr_->velocity.z();
         detected_object.dimensions.x = obs_ptr->state_ptr_->x_size; 
         detected_object.dimensions.y = obs_ptr->state_ptr_->y_size;
         detected_object.dimensions.z = 1.0; 
@@ -69,6 +73,7 @@ void rvizObstacleGenerator_Node::publish_obstacle(const ros::TimerEvent&){
         marker.scale.x = obs_ptr->state_ptr_->x_size; 
         marker.scale.y = obs_ptr->state_ptr_->y_size;
         marker.scale.z = 1.0;
+        marker.lifetime = ros::Duration(dt);
 
         if (obs_ptr->state_ptr_->is_static){
             marker.color.r = 1.0; 
@@ -83,7 +88,31 @@ void rvizObstacleGenerator_Node::publish_obstacle(const ros::TimerEvent&){
             marker.color.a = 0.8;
         }
         obstacle_viz_array.markers.push_back(marker);
-        id++;
+
+        // 텍스트 마커 추가
+        visualization_msgs::Marker text_marker;
+        text_marker.header.frame_id = "map";
+        text_marker.id = id + 1; // 각 마커는 고유한 ID를 가져야 합니다.
+
+        text_marker.type = visualization_msgs::Marker::TEXT_VIEW_FACING;
+        text_marker.pose = detected_object.pose;
+        text_marker.pose.position.z += 1.5; // 텍스트가 큐브 위에 위치하도록 z 좌표 조정
+
+        text_marker.scale.z = 1.5; // 텍스트 크기 설정
+        text_marker.color.r = 1.0;
+        text_marker.color.g = 1.0;
+        text_marker.color.b = 1.0;
+        text_marker.color.a = 1.0;
+        text_marker.lifetime = ros::Duration(dt);
+
+        std::stringstream ss;
+        ss << "ID: " << id;
+        text_marker.text = ss.str(); // 텍스트 내용 설정
+
+        obstacle_viz_array.markers.push_back(text_marker);
+
+        id += 2; // ID를 두 개 증가시켜 CUBE와 TEXT의 ID를 구분
+
 
     }
     obstacle_pub_.publish(obstacle_array);

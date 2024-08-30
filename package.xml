@@ -12,12 +12,26 @@
 
   <build_depend>roscpp</build_depend>
   <build_depend>visualization_msgs</build_depend>
+  <build_depend>hmcl_msgs</build_depend>
   <build_depend>dynamic_reconfigure</build_depend>
+  
+  
+  
+  
+  
+  
+  
 
   <exec_depend>roscpp</exec_depend>
   <exec_depend>visualization_msgs</exec_depend>
-  <exec_depend>dynamic_reconfigure</exec_depend>
-
+  <exec_depend>hmcl_msgs</exec_depend>
+  <exec_depend>dynamic_reconfigure</exec_depend>  
+  
+  
+  
+  
+  
+  
   <export>
     <build_type>catkin</build_type>
   </export>

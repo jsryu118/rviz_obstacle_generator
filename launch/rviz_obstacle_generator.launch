@@ -1,8 +1,4 @@
 <launch>
-
-
-
-
   <node pkg="rviz" type="rviz" name="rviz" output="screen" 
     args="-d $(find rviz_obstacle_generator)/rviz/default.rviz" required="true">
     <!-- <remap from="/clicked_point" to="/static_obstacle" /> -->
@@ -14,6 +10,5 @@
 
   <node name="rviz_obstacle_generator" pkg="rviz_obstacle_generator" type="rviz_obstacle_generator_node" output="screen">
     <param name="hz_obstacle" value="10"/> 
-
   </node>
 </launch>

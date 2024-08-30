@@ -1,0 +1,23 @@
+<launch>
+
+
+
+
+  <node pkg="rviz" type="rviz" name="rviz" output="screen" 
+    args="-d $(find rviz_obstacle_generator)/rviz/default.rviz" required="true">
+    <!-- <remap from="/clicked_point" to="/static_obstacle" /> -->
+    <remap from="/initialpose" to="/lane_following_obstacle" />
+    <remap from="/move_base_simple/goal" to="/dynamic_obstacle" />
+  </node>
+
+  <node name="rqt_reconfigure" pkg="rqt_reconfigure" type="rqt_reconfigure" output="screen" />
+
+  <node name="rviz_obstacle_generator_v2" pkg="rviz_obstacle_generator" type="rviz_obstacle_generator_node_v2" output="screen">
+    <param name="map_origin_lat" value="35.6476476"/> 
+    <param name="map_origin_lon" value="128.4026271"/>  
+    <param name="map_origin_att" value="48.168"/> 
+    <param name="osm_file_name" value="$(find rviz_obstacle_generator)/map/lidar_123_joker_KR_added.osm"/>
+    <param name="hz_obstacle" value="10"/> 
+
+  </node>
+</launch>
